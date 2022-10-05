@@ -46,7 +46,7 @@ def syn_lap_pyr(pyr):
         # at next finest pyramid level
         up_x = pyr[i].size(2)
         up_y = pyr[i].size(3)
-        cur = pyr[i] + F.interpolate(cur, (up_x, up_y), mode='bilinear')
+        cur = pyr[i] + F.interpolate(cur, (up_x, up_y), mode='bilinear', align_corners=True)
     x = cur
 
     return x

@@ -39,6 +39,9 @@ def produce_stylization(content_im, style_im, phi,
                             version of output and content image)
             zero_init -- if true initialize w/ grey image, o.w. initialize w/
                          down sampled content image
+
+        Output:
+            stylized image
     """
     # Get max side length of final output and set number of pyramid levels to 
     # optimize over
@@ -48,7 +51,7 @@ def produce_stylization(content_im, style_im, phi,
     # Decompose style image, content image, and output image into laplacian 
     # pyramid
     style_pyr = dec_pyr(style_im, pyr_levs)
-    c_pyr = dec_pyr(content_im, pyr_levs)
+    content_pyr = dec_pyr(content_im, pyr_levs)
     s_pyr = dec_pyr(content_im.clone(), pyr_levs)
 
     # Initialize output image pyramid
@@ -76,7 +79,7 @@ def produce_stylization(content_im, style_im, phi,
         if misc.USE_GPU:
             torch.cuda.empty_cache()
         style_im_tmp = syn_pyr(style_pyr[scl:])  # Get original style image
-        content_im_tmp = syn_pyr(c_pyr[scl:])  # Get original content image
+        content_im_tmp = syn_pyr(content_pyr[scl:])  # Get original content image
         output_im_tmp = syn_pyr(s_pyr[scl:])
         li += 1
         print(f'-{li, max(output_im_tmp.size(2), output_im_tmp.size(3))}-')
@@ -93,7 +96,7 @@ def produce_stylization(content_im, style_im, phi,
 
             # Search for features using high frequencies from content 
             # (but do not initialize actual output with them)
-            output_extract = syn_pyr([c_pyr[scl]] + s_pyr[(scl + 1):])
+            output_extract = syn_pyr([content_pyr[scl]] + s_pyr[(scl + 1):])
 
             # Extract style features from rotated copies of style image
             feats_s = extract_feats(style_im_tmp, phi, flip_aug=flip_aug).cpu()
@@ -107,17 +110,13 @@ def produce_stylization(content_im, style_im, phi,
             target_feats = replace_features(feats_c, feats_s)
 
         # Synthesize output at current resolution using hypercolumn matching
-        s_pyr = optimize_output_im(s_pyr, c_pyr, content_im, style_im_tmp,
+        s_pyr = optimize_output_im(s_pyr, content_pyr, content_im, style_im_tmp,
                                    target_feats, lr, max_iter, scl, phi,
                                    content_loss=content_loss)
 
-        # Get output at current resolution from pyramid
-        with torch.no_grad():
-            output_im = syn_pyr(s_pyr)
-
     # Perform final pass using feature splitting (pass in flip_aug argument
     # because style features are extracted internally in this regime)
-    s_pyr = optimize_output_im(s_pyr, c_pyr, content_im, style_im_tmp,
+    s_pyr = optimize_output_im(s_pyr, content_pyr, content_im, style_im_tmp,
                                target_feats, lr, max_iter, scl, phi,
                                final_pass=True, content_loss=content_loss,
                                flip_aug=flip_aug)
@@ -184,14 +183,14 @@ def replace_features(src, ref):
     return rplc
 
 
-def optimize_output_im(s_pyr, c_pyr, content_im, style_im, target_feats,
+def optimize_output_im(s_pyr, content_pyr, content_im, style_im, target_feats,
                        lr, max_iter, scl, phi, final_pass=False,
                        content_loss=False, flip_aug=True):
     ''' Optimize laplacian pyramid coefficients of stylized image at a given
         resolution, and return stylized pyramid coefficients.
         Inputs:
             s_pyr -- laplacian pyramid of style image
-            c_pyr -- laplacian pyramid of content image
+            content_pyr -- laplacian pyramid of content image
             content_im -- content image
             style_im -- style image
             target_feats -- precomputed target features of stylized output
@@ -252,7 +251,7 @@ def optimize_output_im(s_pyr, c_pyr, content_im, style_im, target_feats,
 
     # Precompute content self-similarity matrix if needed for 'content_loss'
     if content_loss:
-        c_full = syn_pyr(c_pyr)
+        c_full = syn_pyr(content_pyr)
         c_scl = max(c_full.size(2), c_full.size(3))
         c_fac = c_scl // 32
         h = int(c_full.size(2) / c_fac)
@@ -339,5 +338,5 @@ def optimize_output_im(s_pyr, c_pyr, content_im, style_im, target_feats,
 
     # Update output's pyramid coefficients for current resolution
     # (and all coarser resolutions)    
-    s_pyr[scl:] = dec_pyr(output_im, len(c_pyr) - 1 - scl)
+    s_pyr[scl:] = dec_pyr(output_im, len(content_pyr) - 1 - scl)
     return s_pyr

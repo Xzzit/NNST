@@ -1,13 +1,10 @@
 # Core Imports
-import random
 import ssl
 
+import torch
 # External Dependency Imports
 import torch.nn.functional as F
-from torch.autograd import Variable
-import torch
 from torchvision import models
-import numpy as np
 
 """
 Using pre-trained VGG to extract hyper-columns information of a given image
@@ -74,7 +71,7 @@ class Vgg16Pretrained(torch.nn.Module):
                     if len(zi_list) == 0:
                         zi_list.append(zi)
                     else:
-                        zi_list.append(F.interpolate(zi, (max_h, max_w), mode='bilinear'))
+                        zi_list.append(F.interpolate(zi, (max_h, max_w), mode='bilinear', align_corners=True))
 
                 z = torch.cat(zi_list, 1)
             else:  # don't bother doing anything if only returning one hidden state

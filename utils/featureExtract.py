@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Internal Project Imports
 from utils.misc import scl_spatial
 
+
 def get_feat_norms(x):
     """ Makes l2 norm of x[i,:,j,k] = 1 for all i,j,k. Clamps before sqrt for
     stability
@@ -33,17 +34,18 @@ def phi_cat(x, phi, layer_l):
     feats = [f / f.size(1) for f in feats]
 
     # Scale layers' features to target size and concatenate
-    feats = torch.cat([scl_spatial(f, h // 4, w // 4) for f in feats], 1) 
+    feats = torch.cat([scl_spatial(f, h // 4, w // 4) for f in feats], 1)
 
     return feats
 
+
 def extract_feats(im, phi, flip_aug=False):
     """ Extract hypercolumns from 'im' using pretrained VGG16 (passed as phi),
-    if speficied, extract hypercolumns from rotations of 'im' as well
+    if specified, extract hypercolumns from rotated 'im' as well
         Inputs:
             im -- a Bx3xHxW pytorch tensor, presumed to contain rgb images
             phi -- a lambda function calling a pretrained Vgg16Pretrained model
-            flip_aug -- whether to extract hypercolumns from rotations of 'im'
+            flip_aug -- whether to extract hypercolumns from rotated 'im'
                         as well
         Outputs:
             feats -- a tensor of hypercolumns extracted from 'im', spatial
