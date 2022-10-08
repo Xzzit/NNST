@@ -3,7 +3,6 @@ import random
 
 # External Dependency Imports
 import torch
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 # Internal Project Imports
@@ -94,15 +93,14 @@ def produce_stylization(content_im, style_im, phi,
             if li == 0:
                 alpha = 0.
 
-            # Search for features using high frequencies from content 
-            # (but do not initialize actual output with them)
-            output_extract = syn_pyr([content_pyr[scl]] + s_pyr[(scl + 1):])
+            # Search for features using high frequencies from content (but do not initialize actual output with them)
+            # Not sure the reason behind!
+            output_extract = syn_pyr([content_pyr[scl]] + s_pyr[(scl + 1):])  # There are some noise in the image
 
             # Extract style features from rotated copies of style image
             feats_s = extract_feats(style_im_tmp, phi, flip_aug=flip_aug).cpu()
 
-            # Extract features from convex combination of content image and
-            # current iterate:
+            # Extract features from convex combination of content image and current iterate:
             c_tmp = (output_extract * alpha) + (content_im_tmp * (1. - alpha))
             feats_c = extract_feats(c_tmp, phi).cpu()
 
@@ -152,8 +150,7 @@ def replace_features(src, ref):
         bi = 0
         ei = 0
 
-        # Loop until all content features are replaced by style feature / all
-        # rows of distance matrix are computed
+        # Loop until all content features are replaced by style feature / all rows of distance matrix are computed
         out = []
         src_flat_all = flatten_grid(src[j:j + 1, :, :, :])
         while bi < src_flat_all.size(0):
@@ -167,8 +164,7 @@ def replace_features(src, ref):
             _, nn_inds = torch.min(d_mat, 0)
             del d_mat  # distance matrix uses lots of memory, free asap
 
-            # Get style feature closest to each content feature and save
-            # in 'out'
+            # Get style feature closest to each content feature and save in 'out'
             nn_inds = nn_inds.unsqueeze(1).expand(nn_inds.size(0), ref_flat.size(1))
             ref_sel = torch.gather(ref_flat, 0, nn_inds).transpose(1, 0).contiguous()
             out.append(ref_sel)  # .view(1, ref.size(1), src.size(2), ei - bi))

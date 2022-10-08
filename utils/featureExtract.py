@@ -29,8 +29,7 @@ def phi_cat(x, phi, layer_l):
     w = x.size(3)
 
     feats = phi(x, layer_l, False)
-    # Normalize each layer by # channels so # of channels doesn't dominate 
-    # cosine distance
+    # Normalize each layer by # channels so # of channels doesn't dominate cosine distance
     feats = [f / f.size(1) for f in feats]
 
     # Scale layers' features to target size and concatenate
