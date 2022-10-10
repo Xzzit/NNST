@@ -25,7 +25,7 @@ def pairwise_distances_cos(x, y):
     y_norm = torch.sqrt((y ** 2).sum(1).view(-1, 1))
     y_t = torch.transpose(y / y_norm, 0, 1)
 
-    d = 1. - torch.mm(x / x_norm, y_t)
+    d = 1. - torch.mm(x / x_norm, y_t)  # Why compute the dissimilarity instead of similarity?
     return d
 
 

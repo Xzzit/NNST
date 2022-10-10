@@ -108,13 +108,13 @@ def produce_stylization(content_im, style_im, phi,
             target_feats = replace_features(feats_c, feats_s)
 
         # Synthesize output at current resolution using hypercolumn matching
-        output_pyr = optimize_output_im(output_pyr, content_pyr, content_im, style_im_tmp,
+        output_pyr = optimize_output_im(output_pyr, content_pyr, style_im_tmp,
                                    target_feats, lr, max_iter, scl, phi,
                                    content_loss=content_loss)
 
     # Perform final pass using feature splitting (pass in flip_aug argument
     # because style features are extracted internally in this regime)
-    output_pyr = optimize_output_im(output_pyr, content_pyr, content_im, style_im_tmp,
+    output_pyr = optimize_output_im(output_pyr, content_pyr, style_im_tmp,
                                target_feats, lr, max_iter, scl, phi,
                                final_pass=True, content_loss=content_loss,
                                flip_aug=flip_aug)
@@ -140,9 +140,8 @@ def replace_features(src, ref):
                 neighbor feature vector of src[0,:,i,j] in ref
     """
     # Move style features, content features to gpu
-    src_flat_all = flatten_grid(src)  # Shape: [(H' * W'), C: (e.g. 2688)]
-    ref_flat = to_device(flatten_grid(ref))  # Shape: [(H * W), C: (e.g. 2688)]
-    rplc = []
+    src_flat_all = flatten_grid(src)  # Shape: [(H' * W'), C: e.g. 2688]
+    ref_flat = to_device(flatten_grid(ref))  # Shape: [(H * W), C: e.g. 2688]
 
     # How many rows of the distance matrix to compute at once, can be
     # reduced if less memory is available, but this slows method down
@@ -163,21 +162,18 @@ def replace_features(src, ref):
         del d_mat  # distance matrix uses lots of memory, free asap
 
         # Get style feature closest to each content feature and save in 'out'
-        nn_inds = nn_inds.unsqueeze(1).expand(nn_inds.size(0), ref_flat.size(1))
-        ref_sel = torch.gather(ref_flat, 0, nn_inds).transpose(1, 0).contiguous()
+        ref_sel = torch.index_select(ref_flat, 0, nn_inds).transpose(1, 0).contiguous()
         out.append(ref_sel)  # .view(1, ref.size(1), src.size(2), ei - bi))
 
         bi = ei
 
     out = torch.cat(out, 1)
-    out = out.view(1, ref.size(1), src.size(2), src.size(3))
-    rplc.append(out)
+    out = out.view(1, src.size(1), src.size(2), src.size(3))
 
-    rplc = torch.cat(rplc, 0)
-    return rplc
+    return out
 
 
-def optimize_output_im(output_pyr, content_pyr, content_im, style_im, target_feats,
+def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
                        lr, max_iter, scl, phi, final_pass=False,
                        content_loss=False, flip_aug=True):
     ''' Optimize laplacian pyramid coefficients of stylized image at a given
