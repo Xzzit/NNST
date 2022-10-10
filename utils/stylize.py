@@ -51,14 +51,14 @@ def produce_stylization(content_im, style_im, phi,
     # pyramid
     style_pyr = dec_pyr(style_im, pyr_levs)
     content_pyr = dec_pyr(content_im, pyr_levs)
-    s_pyr = dec_pyr(content_im.clone(), pyr_levs)
+    output_pyr = dec_pyr(content_im.clone(), pyr_levs)
 
     # Initialize output image pyramid
     if zero_init:
         # Initialize with flat grey image (works, but less vivid)
-        for i in range(len(s_pyr)):
-            s_pyr[i] = s_pyr[i] * 0.
-        s_pyr[-1] = s_pyr[-1] * 0. + 0.5
+        for i in range(len(output_pyr)):
+            output_pyr[i] = output_pyr[i] * 0.
+        output_pyr[-1] = output_pyr[-1] * 0. + 0.5
 
     else:
         # Initialize with low-res version of content image (generally better 
@@ -68,7 +68,7 @@ def produce_stylization(content_im, style_im, phi,
             z_max = 3
 
         for i in range(z_max):
-            s_pyr[i] = s_pyr[i] * 0.
+            output_pyr[i] = output_pyr[i] * 0.
 
     # Stylize using hypercolumn matching from coarse to fine scale
     li = -1
@@ -79,7 +79,7 @@ def produce_stylization(content_im, style_im, phi,
             torch.cuda.empty_cache()
         style_im_tmp = syn_pyr(style_pyr[scl:])  # Get original style image
         content_im_tmp = syn_pyr(content_pyr[scl:])  # Get original content image
-        output_im_tmp = syn_pyr(s_pyr[scl:])
+        output_im_tmp = syn_pyr(output_pyr[scl:])
         li += 1
         print(f'-{li, max(output_im_tmp.size(2), output_im_tmp.size(3))}-')
 
@@ -95,33 +95,33 @@ def produce_stylization(content_im, style_im, phi,
 
             # Search for features using high frequencies from content (but do not initialize actual output with them)
             # Not sure the reason behind!
-            output_extract = syn_pyr([content_pyr[scl]] + s_pyr[(scl + 1):])  # There are some noise in the image
+            output_im_tmp = syn_pyr([content_pyr[scl]] + output_pyr[(scl + 1):])  # There are some noise in the image
 
             # Extract style features from rotated copies of style image
             feats_s = extract_feats(style_im_tmp, phi, flip_aug=flip_aug).cpu()
 
             # Extract features from convex combination of content image and current iterate:
-            c_tmp = (output_extract * alpha) + (content_im_tmp * (1. - alpha))
+            c_tmp = (output_im_tmp * alpha) + (content_im_tmp * (1. - alpha))
             feats_c = extract_feats(c_tmp, phi).cpu()
 
             # Replace content features with style features
             target_feats = replace_features(feats_c, feats_s)
 
         # Synthesize output at current resolution using hypercolumn matching
-        s_pyr = optimize_output_im(s_pyr, content_pyr, content_im, style_im_tmp,
+        output_pyr = optimize_output_im(output_pyr, content_pyr, content_im, style_im_tmp,
                                    target_feats, lr, max_iter, scl, phi,
                                    content_loss=content_loss)
 
     # Perform final pass using feature splitting (pass in flip_aug argument
     # because style features are extracted internally in this regime)
-    s_pyr = optimize_output_im(s_pyr, content_pyr, content_im, style_im_tmp,
+    output_pyr = optimize_output_im(output_pyr, content_pyr, content_im, style_im_tmp,
                                target_feats, lr, max_iter, scl, phi,
                                final_pass=True, content_loss=content_loss,
                                flip_aug=flip_aug)
 
     # Get final output from pyramid
     with torch.no_grad():
-        output_im = syn_pyr(s_pyr)
+        output_im = syn_pyr(output_pyr)
 
     if dont_colorize:
         return output_im
@@ -179,13 +179,13 @@ def replace_features(src, ref):
     return rplc
 
 
-def optimize_output_im(s_pyr, content_pyr, content_im, style_im, target_feats,
+def optimize_output_im(output_pyr, content_pyr, content_im, style_im, target_feats,
                        lr, max_iter, scl, phi, final_pass=False,
                        content_loss=False, flip_aug=True):
     ''' Optimize laplacian pyramid coefficients of stylized image at a given
         resolution, and return stylized pyramid coefficients.
         Inputs:
-            s_pyr -- laplacian pyramid of style image
+            output_pyr -- laplacian pyramid of style image
             content_pyr -- laplacian pyramid of content image
             content_im -- content image
             style_im -- style image
@@ -207,12 +207,12 @@ def optimize_output_im(s_pyr, content_pyr, content_im, style_im, target_feats,
                         more options available when matching style features
                         to content features
         Outputs:
-            s_pyr -- pyramid coefficients of stylized output image at target
+            output_pyr -- pyramid coefficients of stylized output image at target
                      resolution
     '''
     # Initialize optimizer variables and optimizer       
-    output_im = syn_pyr(s_pyr[scl:])
-    opt_vars = [Variable(li.data, requires_grad=True) for li in s_pyr[scl:]]
+    output_im = syn_pyr(output_pyr[scl:])
+    opt_vars = [Variable(li.data, requires_grad=True) for li in output_pyr[scl:]]
     optimizer = torch.optim.Adam(opt_vars, lr=lr)
 
     # Original features uses all layers, but dropping conv5 block  speeds up 
@@ -334,5 +334,5 @@ def optimize_output_im(s_pyr, content_pyr, content_im, style_im, target_feats,
 
     # Update output's pyramid coefficients for current resolution
     # (and all coarser resolutions)    
-    s_pyr[scl:] = dec_pyr(output_im, len(content_pyr) - 1 - scl)
-    return s_pyr
+    output_pyr[scl:] = dec_pyr(output_im, len(content_pyr) - 1 - scl)
+    return output_pyr
