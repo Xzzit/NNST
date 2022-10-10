@@ -23,9 +23,9 @@ torch.manual_seed(0)
 content_path = './inputs/content/C2.png'
 style_path = './inputs/style/S3.jpg'
 output_path = './output.jpg'
-flip_aug = True
 max_scls = 4
 sz = 512
+flip_aug = True
 content_loss = True
 misc.USE_GPU = True
 dont_colorize = True

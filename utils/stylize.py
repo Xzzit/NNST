@@ -139,41 +139,39 @@ def replace_features(src, ref):
         rplc -- 1xCxHxW tensor of features, where rplc[0,:,i,j] is the nearest
                 neighbor feature vector of src[0,:,i,j] in ref
     """
-    # Move style features to gpu (necessary to mostly store on cpu for gpus w/
-    # < 12GB of memory)
-    ref_flat = to_device(flatten_grid(ref))
+    # Move style features, content features to gpu
+    src_flat_all = flatten_grid(src)  # Shape: [(H' * W'), C: (e.g. 2688)]
+    ref_flat = to_device(flatten_grid(ref))  # Shape: [(H * W), C: (e.g. 2688)]
     rplc = []
-    for j in range(src.size(0)):
-        # How many rows of the distance matrix to compute at once, can be
-        # reduced if less memory is available, but this slows method down
-        stride = 128 ** 2 // max(1, (ref.size(2) * ref.size(3)) // (128 ** 2))
-        bi = 0
-        ei = 0
 
-        # Loop until all content features are replaced by style feature / all rows of distance matrix are computed
-        out = []
-        src_flat_all = flatten_grid(src[j:j + 1, :, :, :])
-        while bi < src_flat_all.size(0):
-            ei = min(bi + stride, src_flat_all.size(0))
+    # How many rows of the distance matrix to compute at once, can be
+    # reduced if less memory is available, but this slows method down
+    # Stride becomes smaller when style image size getting bigger
+    stride = 128 ** 2 // max(1, (ref.size(2) * ref.size(3)) // (128 ** 2))
+    bi = 0
 
-            # Get chunk of content features, compute corresponding portion
-            # distance matrix, and store nearest style feature to each content
-            # feature
-            src_flat = to_device(src_flat_all[bi:ei, :])
-            d_mat = pairwise_distances_cos_center(ref_flat, src_flat)
-            _, nn_inds = torch.min(d_mat, 0)
-            del d_mat  # distance matrix uses lots of memory, free asap
+    # Loop until all content features are replaced by style feature / all rows of distance matrix are computed
+    out = []
+    while bi < src_flat_all.size(0):
+        ei = min(bi + stride, src_flat_all.size(0))
 
-            # Get style feature closest to each content feature and save in 'out'
-            nn_inds = nn_inds.unsqueeze(1).expand(nn_inds.size(0), ref_flat.size(1))
-            ref_sel = torch.gather(ref_flat, 0, nn_inds).transpose(1, 0).contiguous()
-            out.append(ref_sel)  # .view(1, ref.size(1), src.size(2), ei - bi))
+        # Get chunk of content features, compute corresponding portion
+        # distance matrix, and store nearest style feature to each content feature
+        src_flat = to_device(src_flat_all[bi:ei, :])
+        d_mat = pairwise_distances_cos_center(ref_flat, src_flat)
+        _, nn_inds = torch.min(d_mat, 0)
+        del d_mat  # distance matrix uses lots of memory, free asap
 
-            bi = ei
+        # Get style feature closest to each content feature and save in 'out'
+        nn_inds = nn_inds.unsqueeze(1).expand(nn_inds.size(0), ref_flat.size(1))
+        ref_sel = torch.gather(ref_flat, 0, nn_inds).transpose(1, 0).contiguous()
+        out.append(ref_sel)  # .view(1, ref.size(1), src.size(2), ei - bi))
 
-        out = torch.cat(out, 1)
-        out = out.view(1, ref.size(1), src.size(2), src.size(3))
-        rplc.append(out)
+        bi = ei
+
+    out = torch.cat(out, 1)
+    out = out.view(1, ref.size(1), src.size(2), src.size(3))
+    rplc.append(out)
 
     rplc = torch.cat(rplc, 0)
     return rplc
