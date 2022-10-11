@@ -9,9 +9,9 @@ Try Replicate web demo here [![Replicate](https://replicate.com/nkolkin13/neural
 ## Dependencies
 Tested With:        
 * Python 3.7.7        
-* Pytorch 1.5.0       
-* Imageio 2.8.0        
-* Numpy 1.18.1          
+* Pytorch 1.10.0       
+* Imageio 2.13.5        
+* Numpy 1.21.2          
 
 ## Example Output
 Example output produced using included files with the command:
