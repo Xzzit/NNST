@@ -133,11 +133,11 @@ def replace_features(src, ref):
     """ Replace each feature vector in 'src' with the nearest (under centered 
     cosine distance) feature vector in 'ref'
     Inputs:
-        src -- 1xCxAxB tensor of content features
-        ref -- 1xCxHxW tensor of style features
+        src -- [1, C, H, W] tensor of content features
+        ref -- [1, C, H', W'] tensor of style features
     Outputs:
-        rplc -- 1xCxHxW tensor of features, where rplc[0,:,i,j] is the nearest
-                neighbor feature vector of src[0,:,i,j] in ref
+        rplc -- [1, C, H, W] tensor of features, where rplc[0,:,i,j] is the nearest
+                neighbor feature vector of src[0,:,i',j'] in ref
     """
     # Move style features, content features to gpu
     src_flat_all = flatten_grid(src)  # Shape: [(H' * W'), C: e.g. 2688]
@@ -176,12 +176,11 @@ def replace_features(src, ref):
 def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
                        lr, max_iter, scl, phi, final_pass=False,
                        content_loss=False, flip_aug=True):
-    ''' Optimize laplacian pyramid coefficients of stylized image at a given
+    """ Optimize laplacian pyramid coefficients of stylized image at a given
         resolution, and return stylized pyramid coefficients.
         Inputs:
-            output_pyr -- laplacian pyramid of style image
+            output_pyr -- laplacian pyramid of output image
             content_pyr -- laplacian pyramid of content image
-            content_im -- content image
             style_im -- style image
             target_feats -- precomputed target features of stylized output
             lr -- learning rate for optimization
@@ -191,7 +190,7 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
             phi -- lambda function to compute features using pretrained VGG16
             final_pass -- if true, ignore 'target_feats' and recompute target
                           features before every step of gradient descent (and
-                          compute feature matches seperately for each layer
+                          compute feature matches separately for each layer
                           instead of using hypercolumns)
             content_loss -- if true, also minimize content loss that maintains
                             self-similarity in color space between 32pixel
@@ -203,10 +202,10 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
         Outputs:
             output_pyr -- pyramid coefficients of stylized output image at target
                      resolution
-    '''
-    # Initialize optimizer variables and optimizer       
+    """
+    # Initialize optimizer variables and optimizer
     output_im = syn_pyr(output_pyr[scl:])
-    opt_vars = [Variable(li.data, requires_grad=True) for li in output_pyr[scl:]]
+    opt_vars = [li.clone().detach().requires_grad_(True) for li in output_pyr[scl:]]
     optimizer = torch.optim.Adam(opt_vars, lr=lr)
 
     # Original features uses all layers, but dropping conv5 block  speeds up 

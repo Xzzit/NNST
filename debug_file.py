@@ -47,7 +47,7 @@ style_im_orig = misc.to_device(load_path_for_pytorch(style_path, target_size=sz)
 torch.cuda.synchronize()
 start_time = time.time()
 output = produce_stylization(content_im_orig, style_im_orig, phi,
-                            max_iter=100,
+                            max_iter=60,
                             lr=2e-3,
                             content_weight=content_weight,
                             max_scls=max_scls,
