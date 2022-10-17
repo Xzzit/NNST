@@ -7,8 +7,7 @@ from utils.misc import scl_spatial
 
 
 def get_feat_norms(x):
-    """ Makes l2 norm of x[i,:,j,k] = 1 for all i,j,k. Clamps before sqrt for
-    stability
+    """ Makes l2 norm of x[i,:,j,k] = 1 for all i,j,k. Clamps before sqrt for stability
     """
     return torch.clamp(x.pow(2).sum(1, keepdim=True), 1e-8, 1e8).sqrt()
 

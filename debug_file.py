@@ -21,7 +21,7 @@ torch.manual_seed(0)
 
 # Interpret command line arguments
 content_path = './inputs/content/C2.png'
-style_path = './inputs/style/S2.jpg'
+style_path = './inputs/style/S1.jpg'
 output_path = './output.jpg'
 max_scls = 4
 sz = 512
