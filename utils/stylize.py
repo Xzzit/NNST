@@ -8,7 +8,7 @@ from torch.autograd import Variable
 # Internal Project Imports
 from utils.imagePyramid import syn_lap_pyr as syn_pyr
 from utils.imagePyramid import dec_lap_pyr as dec_pyr
-from utils.distance import pairwise_distances_l2, pairwise_distances_cos_center
+from utils.distance import pairwise_distances_gram, pairwise_distances_cos_center
 from utils.featureExtract import extract_feats, get_feat_norms
 from utils import misc
 from utils.misc import to_device, flatten_grid, scl_spatial
@@ -16,14 +16,10 @@ from utils.colorization import color_match
 
 
 def produce_stylization(content_im, style_im, phi,
-                        max_iter=350,
-                        lr=1e-3,
-                        content_weight=1.,
-                        max_scls=4,
-                        flip_aug=False,
-                        content_loss=False,
-                        zero_init=False,
-                        dont_colorize=False):
+                        max_iter=350, lr=1e-3,
+                        content_weight=1., max_scls=4,
+                        flip_aug=False, content_loss=False,
+                        zero_init=False, dont_colorize=False):
     """ Produce stylization of 'content_im' in the style of 'style_im'
         Inputs:
             content_im -- 1x3xHxW pytorch tensor containing rbg content image
@@ -204,7 +200,6 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
                      resolution
     """
     # Initialize optimizer variables and optimizer
-    output_im = syn_pyr(output_pyr[scl:])
     opt_vars = [li.clone().detach().requires_grad_(True) for li in output_pyr[scl:]]
     optimizer = torch.optim.Adam(opt_vars, lr=lr)
 
@@ -247,7 +242,7 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
         w = int(c_full.size(3) / c_fac)
 
         c_low_flat = flatten_grid(scl_spatial(c_full, h, w))
-        self_sim_target = pairwise_distances_l2(c_low_flat, c_low_flat).clone().detach()
+        self_sim_target = pairwise_distances_gram(c_low_flat, c_low_flat).clone().detach()
 
     # Optimize pyramid coefficients to find image that produces stylized activations
     for i in range(max_iter):
@@ -317,7 +312,7 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
             w = int(output_im.size(3) / o_fac)
 
             o_flat = flatten_grid(scl_spatial(output_im, h, w))
-            self_sim_out = pairwise_distances_l2(o_flat, o_flat)
+            self_sim_out = pairwise_distances_gram(o_flat, o_flat)
 
             ell = ell + torch.mean(torch.abs((self_sim_out - self_sim_target)))
 
