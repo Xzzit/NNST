@@ -38,13 +38,11 @@ def produce_stylization(content_im, style_im, phi,
         Output:
             stylized image
     """
-    # Get max side length of final output and set number of pyramid levels to 
-    # optimize over
+    # Get max side length of final output and set number of pyramid levels to optimize over
     max_size = max(content_im.size(2), content_im.size(3))
     pyr_levs = 8
 
-    # Decompose style image, content image, and output image into laplacian 
-    # pyramid
+    # Decompose style image, content image, and output image into laplacian pyramid
     style_pyr = dec_pyr(style_im, pyr_levs)
     content_pyr = dec_pyr(content_im, pyr_levs)
     output_pyr = dec_pyr(content_im.clone(), pyr_levs)
@@ -82,9 +80,8 @@ def produce_stylization(content_im, style_im, phi,
         # Construct stylized activations
         with torch.no_grad():
 
-            # Control tradeoff between searching for features that match
-            # current iterate, and features that match content image (at
-            # coarsest scale, only use content image)    
+            # Control tradeoff between searching for features that match current iterate,
+            # and features that match content image (at coarsest scale, only use content image)
             alpha = content_weight
             if li == 0:
                 alpha = 0.
@@ -203,14 +200,12 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
     opt_vars = [li.clone().detach().requires_grad_(True) for li in output_pyr[scl:]]
     optimizer = torch.optim.Adam(opt_vars, lr=lr)
 
-    # Original features uses all layers, but dropping conv5 block  speeds up 
-    # method without hurting quality
+    # Original features uses all layers, but dropping conv5 block  speeds up method without hurting quality
     feature_list_final = [22, 20, 18, 15, 13, 11, 8, 6, 3, 1]
 
     # Precompute features that remain constant
     if not final_pass:
-        # Precompute normalized features targets during hypercolumn-matching 
-        # regime for cosine distance
+        # Precompute normalized features targets during hypercolumn-matching regime for cosine distance
         target_feats_n = target_feats / get_feat_norms(target_feats)
 
     else:
@@ -318,7 +313,6 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
         ell.backward()
         optimizer.step()
 
-    # Update output's pyramid coefficients for current resolution
-    # (and all coarser resolutions)    
+    # Update output's pyramid coefficients for current resolution (and all coarser resolutions)
     output_pyr[scl:] = dec_pyr(output_im, len(content_pyr) - 1 - scl)
     return output_pyr
