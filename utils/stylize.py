@@ -258,17 +258,16 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
         if not final_pass:  # hypercolumn matching / 'hm' regime
 
             # Extract features from current output, normalize for cos distance
-            cur_feats = extract_feats(output_im, phi)
-            cur_feats_n = cur_feats / get_feat_norms(cur_feats)
+            out_feats = extract_feats(output_im, phi)
+            out_feats_n = out_feats / get_feat_norms(out_feats)
 
             # Update overall loss w/ cosine loss w.r.t target features
-            ell = ell + (1. - (target_feats_n * cur_feats_n).sum(1)).mean()
+            ell = ell + (1. - (target_feats_n * out_feats_n).sum(1)).mean()
 
 
         else:  # feature splitting / 'fs' regime
-            # Extract features from current output (keep each layer seperate 
-            # and don't downsample)
-            cur_feats = phi(output_im, feature_list_final, False)
+            # Extract features from current output (keep each layer seperate and don't downsample)
+            out_feats = phi(output_im, feature_list_final, False)
 
             # Compute matches for each layer. For efficiency don't explicitly 
             # gather matches, only access through distance matrix.
@@ -276,29 +275,32 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
             for h_i in range(len(s_feat)):
                 # Get features from a particular layer
                 s_tmp = s_feat[h_i]
-                cur_tmp = cur_feats[h_i]
+                out_temp = out_feats[h_i]
                 chans = s_tmp.size(1)
 
-                # Sparsely sample feature tensors if too big, otherwise just 
-                # reshape
-                if max(cur_tmp.size(2), cur_tmp.size(3)) > 64:
-                    stride = max(cur_tmp.size(2), cur_tmp.size(3)) // 64
+                # Sparsely sample feature tensors if too big, otherwise just reshape
+                if max(out_temp.size(2), out_temp.size(3)) > 64:
+                    stride = max(out_temp.size(2), out_temp.size(3)) // 64
                     offset_a = random.randint(0, stride - 1)
                     offset_b = random.randint(0, stride - 1)
-                    s_tmp = s_tmp[:, :, offset_a::stride, offset_b::stride]
-                    cs_tmp = cur_tmp[:, :, offset_a::stride, offset_b::stride]
+                    s_samp = s_tmp[:, :, offset_a::stride, offset_b::stride]
+                    out_samp = out_temp[:, :, offset_a::stride, offset_b::stride]
 
-                r_col_samp = s_tmp.contiguous().view(1, chans, -1)
-                s_col_samp = cs_tmp.contiguous().view(1, chans, -1)
+                    s_samp = s_samp.contiguous().view(1, chans, -1)
+                    out_samp = out_samp.contiguous().view(1, chans, -1)
+
+                else:
+                    s_samp = flatten_grid(s_tmp).transpose(1, 0).unsqueeze(0)
+                    out_samp = flatten_grid(out_temp).transpose(1, 0).unsqueeze(0)
 
                 # Compute distance matrix and find minimum along each row to 
                 # implicitly get matches (and minimize distance between them)
-                d_mat = pairwise_distances_cos_center(r_col_samp[0].transpose(1, 0),
-                                                      s_col_samp[0].transpose(1, 0))
+                d_mat = pairwise_distances_cos_center(s_samp[0].transpose(1, 0),
+                                                      out_samp[0].transpose(1, 0))
                 d_min, _ = torch.min(d_mat, 0)
 
                 # Aggregate loss over layers
-                ell_fs = ell_fs + d_min.mean()
+                ell_fs += d_min.mean()
 
             # Update overall loss
             ell = ell + ell_fs
@@ -306,10 +308,6 @@ def optimize_output_im(output_pyr, content_pyr, style_im, target_feats,
         # Optional self similarity content loss between downsampled output 
         # and content image. Always turn off at end for best results.
         if content_loss and not (final_pass and i > 100):
-            o_scl = max(output_im.size(2), output_im.size(3))
-            o_fac = o_scl / 32.
-            h = int(output_im.size(2) / o_fac)
-            w = int(output_im.size(3) / o_fac)
 
             o_flat = flatten_grid(scl_spatial(output_im, h, w))
             self_sim_out = pairwise_distances_gram(o_flat, o_flat)
