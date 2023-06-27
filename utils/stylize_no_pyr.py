@@ -58,11 +58,11 @@ def produce_stylization(content_img, style_img, phi,
         content_im_tmp = scl_spatial(content_img,
                                      content_img.size(2) // 2 ** (scl),
                                      content_img.size(3) // 2 ** (scl))  # Get original content image
-        output_im_tmp = scl_spatial(output_img,
-                                    output_img.size(2) // 2 ** (scl),
-                                    output_img.size(3) // 2 ** (scl))
+        output_img = scl_spatial(output_img,
+                                 content_img.size(2) // 2 ** (scl),
+                                 content_img.size(3) // 2 ** (scl))
         li += 1
-        print(f'-{li, max(output_im_tmp.size(2), output_im_tmp.size(3))}-')
+        print(f'-{li, max(output_img.size(2), output_img.size(3))}-')
 
         # Construct stylized activations
         with torch.no_grad():
@@ -78,28 +78,28 @@ def produce_stylization(content_img, style_img, phi,
             feats_s = extract_feats(style_im_tmp, phi, flip_aug=flip_aug).cpu()
 
             # Extract features from convex combination of content image and current iterate:
-            c_tmp = (output_im_tmp * alpha) + (content_im_tmp * (1. - alpha))
+            c_tmp = (output_img * alpha) + (content_im_tmp * (1. - alpha))
             feats_c = extract_feats(c_tmp, phi).cpu()
 
             # Replace content features with style features
             target_feats = replace_features(feats_c, feats_s)
 
         # Synthesize output at current resolution using hypercolumn matching
-        output_im_tmp = optimize_output_im(output_im_tmp, content_img, style_img,
+        output_img = optimize_output_im(output_img, content_img, style_img,
                                            target_feats, lr, max_iter, scl, phi,
                                            content_loss=content_loss)
 
     # Perform final pass using feature splitting (pass in flip_aug argument
     # because style features are extracted internally in this regime)
-    output_im_tmp = optimize_output_im(output_im_tmp, content_img, style_img,
+    output_img = optimize_output_im(output_img, content_img, style_img,
                                        target_feats, lr, max_iter, scl, phi,
                                        final_pass=True, content_loss=content_loss,
                                        flip_aug=flip_aug)
 
     if dont_colorize:
-        return output_im_tmp
+        return output_img
     else:
-        return color_match(content_img, style_img, output_im_tmp)
+        return color_match(content_img, style_img, output_img)
 
 
 def replace_features(src, ref):
