@@ -46,7 +46,7 @@ def produce_stylization(content_img, style_img, phi,
         output_img = content_img.clone()
 
     # Stylize using hypercolumn matching from coarse to fine scale
-    li = -1
+    li = 0
     for scl in range(max_scls)[::-1]:  # From end to start
 
         # Get content image and style image from pyramid at current resolution
@@ -70,7 +70,7 @@ def produce_stylization(content_img, style_img, phi,
             # Control tradeoff between searching for features that match current iterate,
             # and features that match content image (at coarsest scale, only use content image)
             alpha = content_weight
-            if li == 0:
+            if li == 1:
                 alpha = 0.
 
             # Search for features using high frequencies from content (but do not initialize actual output with them)
