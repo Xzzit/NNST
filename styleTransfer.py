@@ -12,7 +12,7 @@ import numpy as np
 from pretrained.vgg import Vgg16Pretrained
 from utils import misc as misc
 from utils.misc import load_path_for_pytorch
-from utils.stylize import produce_stylization
+from utils.stylize_no_pyr import produce_stylization
 
 # Fix Random Seed
 random.seed(0)
@@ -26,7 +26,7 @@ parser.add_argument('--style_path'     , type=str, default=None, required=True)
 parser.add_argument('--output_path'    , type=str, default=None, required=True)
 parser.add_argument('--high_res'       , action='store_true'                  )
 parser.add_argument('--cpu'            , action='store_true'                  )
-parser.add_argument('--no_flip'        , action='store_true'                  )
+parser.add_argument('--flip'           , action='store_true'                  )
 parser.add_argument('--content_loss'   , action='store_true'                  )
 parser.add_argument('--dont_colorize'  , action='store_true'                  )
 parser.add_argument('--alpha'          , type=float, default=0.75             )
@@ -41,7 +41,7 @@ sz = 512
 if args.high_res:
     max_scls = 5
     sz = 1024
-flip_aug = (not args.no_flip)
+flip_aug = args.flip
 content_loss = args.content_loss
 misc.USE_GPU = (not args.cpu)
 content_weight = 1. - args.alpha
