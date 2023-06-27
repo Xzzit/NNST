@@ -36,8 +36,6 @@ def produce_stylization(content_img, style_img, phi,
         Output:
             stylized image
     """
-    # Get max side length of final output and set number of pyramid levels to optimize over
-    max_size = max(content_img.size(2), content_img.size(3))
 
     # Initialize output image
     if zero_init:
@@ -45,11 +43,7 @@ def produce_stylization(content_img, style_img, phi,
         output_img = torch.zeros_like(content_img) + 0.5
 
     else:
-        # Initialize with low-res version of content image (generally better results, improves contrast of final output)
-        z_max = 5 if max_size < 1024 else 6
-
-        output_img = scl_spatial(content_img, content_img.size(2) // z_max, content_img.size(3) // z_max)
-        output_img = scl_spatial(output_img, content_img.size(2), content_img.size(3))
+        output_img = content_img.clone()
 
     # Stylize using hypercolumn matching from coarse to fine scale
     li = -1
@@ -59,14 +53,14 @@ def produce_stylization(content_img, style_img, phi,
         if misc.USE_GPU:
             torch.cuda.empty_cache()
         style_im_tmp = scl_spatial(style_img,
-                                   style_img.size(2) // 2 ** (scl + 1),
-                                   style_img.size(3) // 2 ** (scl + 1))  # Get original style image
+                                   style_img.size(2) // 2 ** (scl),
+                                   style_img.size(3) // 2 ** (scl))  # Get original style image
         content_im_tmp = scl_spatial(content_img,
-                                     content_img.size(2) // 2 ** (scl + 1),
-                                     content_img.size(3) // 2 ** (scl + 1))  # Get original content image
+                                     content_img.size(2) // 2 ** (scl),
+                                     content_img.size(3) // 2 ** (scl))  # Get original content image
         output_im_tmp = scl_spatial(output_img,
-                                    output_img.size(2) // 2 ** (scl + 1),
-                                    output_img.size(3) // 2 ** (scl + 1))
+                                    output_img.size(2) // 2 ** (scl),
+                                    output_img.size(3) // 2 ** (scl))
         li += 1
         print(f'-{li, max(output_im_tmp.size(2), output_im_tmp.size(3))}-')
 
