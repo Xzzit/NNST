@@ -1,8 +1,4 @@
-# Core Imports
-import ssl
-
 import torch
-# External Dependency Imports
 import torch.nn.functional as F
 from torchvision import models
 
@@ -13,16 +9,7 @@ class Vgg16Pretrained(torch.nn.Module):
     def __init__(self, requires_grad=False):
         super(Vgg16Pretrained, self).__init__()
 
-        try:
-            vgg_pretrained_features = models.vgg16(weights='VGG16_Weights.DEFAULT').features
-        except ssl.SSLError:
-            # unsafe fix to allow pretrained pytorch model to be downloaded
-            # exposes application to man-in-the-middle attacks while model is
-            # being downloaded
-            create_default_context = ssl._create_default_https_context
-            ssl._create_default_https_context = ssl._create_unverified_context
-            vgg_pretrained_features = models.vgg16(pretrained=True).features
-            ssl._create_default_https_context = create_default_context
+        vgg_pretrained_features = models.vgg16(weights='VGG16_Weights.DEFAULT').features
 
         self.vgg_layers = vgg_pretrained_features
         self.slice1 = torch.nn.Sequential()
