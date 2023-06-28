@@ -1,19 +1,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # NNST
-Repo for the algorithm NNST-Opt, described in the preprint "Neural Neighbor Style Transfer", please feel free to email any questions to kolkin@adobe.com
-Paper Link: https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf
+This is a updated repo for the algorithm NNST-Opt, as described in the paper [Neural Neighbor Style Transfer](https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf). You can visit the original code at [nkolkin13](https://github.com/nkolkin13/NeuralNeighborStyleTransfer)
 
 ## Web Demo
 Try Replicate web demo here [![Replicate](https://replicate.com/nkolkin13/neuralneighborstyletransfer/badge)](https://replicate.com/nkolkin13/neuralneighborstyletransfer) 
 
 ## Dependencies
-Tested With:        
-* Python 3.7.7        
-* Pytorch 1.10.0       
-* Imageio 2.13.5        
-* Numpy 1.21.2          
+Tested With:
+* Python 3.10
+* Pytorch 1.13
+* Imageio 2.31
+* Numpy 1.25
 
-## Example Output
+## Example Output -Image
 Example output produced using included files with the command:
 ```
 python styleTransfer.py --content_path inputs/content/C1.png --style_path inputs/style/S4.jpg --output_path ./output.jpg
@@ -26,7 +25,7 @@ python styleTransfer.py --content_path inputs/content/C1.png --style_path inputs
 ```
 ![Example Output w/o Colorization](https://github.com/nkolkin13/NeuralNeighborStyleTransfer/blob/main/example.png?raw=true)
 
-## Examples of using NNST to generate keyframes for video stylization
+## Examples Output -Video
 https://home.ttic.edu/~nickkolkin/nnst_video_supp.mp4
 
 ## Hardware Requirements
@@ -52,7 +51,7 @@ python styleTransfer.py --content_path PATH_TO_CONTENT_IMAGE --style_path PATH_T
 
 (Optional Flag) Augment style image with rotations. Slows down algorithm and increases memory requirement. Generally improves content preservation but hurts stylization slightly:  
 ```
-python styleTransfer.py --content_path PATH_TO_CONTENT_IMAGE --style_path PATH_TO_STYLE_IMAGE --output_path PATH_TO_OUTPUT --do_flip
+python styleTransfer.py --content_path PATH_TO_CONTENT_IMAGE --style_path PATH_TO_STYLE_IMAGE --output_path PATH_TO_OUTPUT --flip
 ```
 
 (Optional Flag) Cpu Mode, this takes tens of minutes even for a 512x512 output:  
