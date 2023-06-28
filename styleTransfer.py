@@ -30,6 +30,7 @@ parser.add_argument('--flip'           , action='store_true'                  )
 parser.add_argument('--content_loss'   , action='store_true'                  )
 parser.add_argument('--dont_colorize'  , action='store_true'                  )
 parser.add_argument('--alpha'          , type=float, default=0.75             )
+parser.add_argument('--top'            , type=int, default=1                  )
 args = parser.parse_args()
 
 # Interpret command line arguments
@@ -45,11 +46,13 @@ flip_aug = args.flip
 content_loss = args.content_loss
 misc.USE_GPU = (not args.cpu)
 content_weight = 1. - args.alpha
+top_k = args.top
 
 # Error checking for arguments
 # error checking for paths deferred to imageio
 assert (0.0 <= content_weight) and (content_weight <= 1.0), "alpha must be between 0 and 1"
 assert torch.cuda.is_available() or (not misc.USE_GPU), "attempted to use gpu when unavailable"
+assert top_k > 0, "top_k must be greater than 0"
 
 # Define feature extractor
 cnn = misc.to_device(Vgg16Pretrained())
@@ -69,7 +72,8 @@ output = produce_stylization(content_im_orig, style_im_orig, phi,
                             max_scls=max_scls,
                             flip_aug=flip_aug,
                             content_loss=content_loss,
-                            dont_colorize=args.dont_colorize)
+                            dont_colorize=args.dont_colorize,
+                            top_k=top_k)
 torch.cuda.synchronize()
 print('Done! total time: {}'.format(time.time() - start_time))
 
