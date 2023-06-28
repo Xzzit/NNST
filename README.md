@@ -1,6 +1,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # NNST
-This is an updated repository for the NNST-Opt algorithm, which is described in the paper [Neural Neighbor Style Transfer](https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf). The original code can be found at [nkolkin13](https://github.com/nkolkin13/NeuralNeighborStyleTransfer). Try Replicate web demo here [![Replicate](https://replicate.com/nkolkin13/neuralneighborstyletransfer/badge)](https://replicate.com/nkolkin13/neuralneighborstyletransfer) 
+This is an updated repository for the NNST-Opt algorithm, which is described in the paper [Neural Neighbor Style Transfer](https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf). The original code can be found at [nkolkin13](https://github.com/nkolkin13/NeuralNeighborStyleTransfer). Try Replicate web demo here [![Replicate](https://replicate.com/nkolkin13/neuralneighborstyletransfer/badge)](https://replicate.com/nkolkin13/neuralneighborstyletransfer)
+
+## What's New
+* Update to the Pytorch 1.13 version.
+* Deprecate the usage of the image pyramid architecture, as it significantly improves code readability.
+* Set the default value of the flip argument to false, which improves the inference speed (from 21s to 16s, in the case of RTX 3090), while resulting in minimal quality loss.
+* I have added a `show_output.ipynb` file to the repository. This file contains examples and explanations of the usage of various functions that appear in the original code. It is designed to help you understand the code more quickly and efficiently. You can refer to this file to enhance your comprehension of the codebase and improve your overall speed in understanding the code.
 
 ## Dependencies
 Tested With:
@@ -26,7 +32,7 @@ python styleTransfer.py --content_path inputs/content/C1.png --style_path inputs
 https://home.ttic.edu/~nickkolkin/nnst_video_supp.mp4
 
 ## Hardware Requirements
-Primarily tested in gpu mode with nvidia gpus using cuda, cpu mode implemented but not tested extensively (and is very slow).  
+Primarily tested with Nvidia GPU using CUDA, CPU mode implemented but not tested extensively (and is very slow).  
 Generating 512x512 outputs requires ~6GB of memory, generating 1024x1024 outputs requires ~12GB of memory.    
 
 ## Usage
