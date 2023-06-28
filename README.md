@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 # NNST
-This is a updated repo for the algorithm NNST-Opt, as described in the paper [Neural Neighbor Style Transfer](https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf). You can visit the original code at [nkolkin13](https://github.com/nkolkin13/NeuralNeighborStyleTransfer)
+This is an updated repository for the NNST-Opt algorithm, which is described in the paper [Neural Neighbor Style Transfer](https://ttic.uchicago.edu/~nickkolkin/Paper/NNST_Preprint.pdf). The original code can be found at [nkolkin13](https://github.com/nkolkin13/NeuralNeighborStyleTransfer)
 
 ## Web Demo
 Try Replicate web demo here [![Replicate](https://replicate.com/nkolkin13/neuralneighborstyletransfer/badge)](https://replicate.com/nkolkin13/neuralneighborstyletransfer) 
