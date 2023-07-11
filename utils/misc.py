@@ -15,7 +15,10 @@ def to_device(tensor):
     """Ensures torch tensor 'tensor' is moved to gpu
     if global variable USE_GPU is True"""
     if USE_GPU:
-        return tensor.cuda()
+        if isinstance(tensor, list):
+            return [t.cuda() for t in tensor]
+        else:
+            return tensor.cuda()
     else:
         return tensor
 
@@ -55,13 +58,19 @@ def get_gpu_memory_map():
 def flatten_grid(x):
     """ collapses spatial dimensions of pytorch tensor 'x' and transposes
         Inputs:
-            x -- 1xCxHxW pytorch tensor
+            x -- 1xCxHxW pytorch tensor or
+            x -- [1xCxHxW, 1xCxH'xW', ...] list of pytorch tensors
         Outputs:
-            y -- (H*W)xC pytorch tensor
+            y -- (H*W)xC pytorch tensor or
+            y -- (H*W+H'*W'+...) pytorch tensor
     """
-    assert x.size(0) == 1, "undefined behavior for batched input"
-    y = x.contiguous().view(x.size(1), -1).clone().transpose(1, 0)
-    return y
+    if isinstance(x, list):
+        y = [flatten_grid(t) for t in x]
+        return torch.cat(y, dim=0)
+    else:
+        assert x.size(0) == 1, "undefined behavior for batched input"
+        y = x.contiguous().view(x.size(1), -1).clone().transpose(1, 0)
+        return y
 
 
 def scl_spatial(x, h, w):
@@ -71,7 +80,7 @@ def scl_spatial(x, h, w):
     return F.interpolate(x, (h, w), mode='bilinear', align_corners=True)
 
 
-def load_path_for_pytorch(im_path, target_size=1000, side_comp=max, verbose=False):
+def load_str_for_pytorch(im_path, target_size=1000, side_comp=max, verbose=False):
     """
     Loads image at 'path', selects height or width with function 'side_comp'
     then scales the image, setting selected dimension to 'target_size' and
@@ -79,8 +88,9 @@ def load_path_for_pytorch(im_path, target_size=1000, side_comp=max, verbose=Fals
     RGB
 
     Returns:
-        x -- a HxWxC pytorch tensor of rgb values scaled between 0. and 1.
+        x -- a 1xHxWxC pytorch tensor of rgb values scaled between 0. and 1.
     """
+
     # Load Image
     x = imread(im_path).astype(np.float32)  # [H, W, C]
 
@@ -110,4 +120,51 @@ def load_path_for_pytorch(im_path, target_size=1000, side_comp=max, verbose=Fals
     if verbose:
         print(f'DEBUG: image from path {im_path} loaded with size {x_dims}')
 
-    return x
+    return x.unsqueeze(0)
+
+
+def load_list_for_pytorch(im_path, target_size=1000, side_comp=max, verbose=False):
+    """
+    Loads image at 'path', selects height or width with function 'side_comp'
+    then scales the image, setting selected dimension to 'target_size' and
+    maintaining aspect ratio. Will also convert RGBA or greyscale images to
+    RGB
+
+    Returns:
+        x -- [1xHxWxC, ...] pytorch tensor of rgb values scaled between 0. and 1.
+    """
+
+    imgs = []
+    for img in im_path:
+        # Load Image
+        x = imread(img).astype(np.float32)  # [H, W, C]
+
+        # Converts image to rgb if greyscale
+        if len(x.shape) < 3:
+            x = np.stack([x, x, x], 2)
+
+        # Removes alpha channel if present
+        if x.shape[2] > 3:
+            x = x[:, :, :3]
+
+        # Rescale rgb values
+        x = x / 255.
+
+        # Convert from numpy
+        x_dims = x.shape
+        x = torch.from_numpy(x).contiguous().permute(2, 0, 1).contiguous()
+
+        # Rescale to desired size
+        # by default maintains aspect ratio relative to long side
+        # change side_comp to be min for short side
+        fac = float(target_size) / side_comp(x_dims[:2])
+        h = int(x_dims[0] * fac)
+        w = int(x_dims[1] * fac)
+        x = scl_spatial(x.unsqueeze(0), h, w)[0]
+        x = x.unsqueeze(0)
+        imgs.append(x)
+
+        if verbose:
+            print(f'DEBUG: image from path {im_path} loaded with size {x_dims}')
+
+    return imgs

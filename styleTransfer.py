@@ -11,7 +11,7 @@ import numpy as np
 # Internal Project Imports
 from pretrained.vgg import Vgg16Pretrained
 from utils import misc as misc
-from utils.misc import load_path_for_pytorch
+from utils.misc import load_str_for_pytorch, load_list_for_pytorch
 from utils.stylize_no_pyr import produce_stylization
 
 # Fix Random Seed
@@ -22,7 +22,7 @@ torch.manual_seed(0)
 # Define command line parser and get command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--content_path'   , type=str, default=None, required=True)
-parser.add_argument('--style_path'     , type=str, default=None, required=True)
+parser.add_argument('--style_path'     , nargs='+', default=None,required=True)
 parser.add_argument('--output_path'    , type=str, default=None, required=True)
 parser.add_argument('--high_res'       , action='store_true'                  )
 parser.add_argument('--cpu'            , action='store_true'                  )
@@ -59,8 +59,8 @@ cnn = misc.to_device(Vgg16Pretrained())
 phi = lambda x, y, z: cnn.forward(x, inds=y, concat=z)
 
 # Load images
-content_im_orig = misc.to_device(load_path_for_pytorch(content_path, target_size=sz)).unsqueeze(0)
-style_im_orig = misc.to_device(load_path_for_pytorch(style_path, target_size=sz)).unsqueeze(0)
+content_im_orig = misc.to_device(load_str_for_pytorch(content_path, target_size=sz))
+style_im_orig = misc.to_device(load_list_for_pytorch(style_path, target_size=sz))
 
 # Run Style Transfer
 torch.cuda.synchronize()

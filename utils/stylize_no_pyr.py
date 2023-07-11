@@ -21,7 +21,7 @@ def produce_stylization(content_img, style_img, phi,
     """ Produce stylization of 'content_img' in the style of 'style_img'
         Inputs:
             content_img -- 1x3xHxW pytorch tensor containing rbg content image
-            style_img -- 1x3xH'xW' pytorch tensor containing rgb style image
+            style_img -- [1x3xH'xW', ..,] pytorch tensor containing rgb style images
             phi -- lambda function to extract features using VGG16Pretrained
             max_iter -- number of updates to image pyramid per scale
             lr -- learning rate of optimizer updating pyramid coefficients
@@ -49,15 +49,18 @@ def produce_stylization(content_img, style_img, phi,
     li = 0
     for scl in range(max_scls)[::-1]:  # From end to start
 
-        # Get content image and style image from pyramid at current resolution
+        # Get content image and style image at current resolution
         if misc.USE_GPU:
             torch.cuda.empty_cache()
-        style_im_tmp = scl_spatial(style_img,
-                                   style_img.size(2) // 2 ** (scl),
-                                   style_img.size(3) // 2 ** (scl))  # Get original style image
+
+        style_im_tmp = []
+        for s in style_img:
+            s = scl_spatial(s, s.size(2) // 2 ** (scl), s.size(3) // 2 ** (scl))
+            style_im_tmp.append(s)
+            
         content_im_tmp = scl_spatial(content_img,
                                      content_img.size(2) // 2 ** (scl),
-                                     content_img.size(3) // 2 ** (scl))  # Get original content image
+                                     content_img.size(3) // 2 ** (scl))
         output_img = scl_spatial(output_img,
                                  content_img.size(2) // 2 ** (scl),
                                  content_img.size(3) // 2 ** (scl))
@@ -75,7 +78,10 @@ def produce_stylization(content_img, style_img, phi,
 
             # Search for features using high frequencies from content (but do not initialize actual output with them)
             # Extract style features from rotated copies of style image
-            feats_s = extract_feats(style_im_tmp, phi, flip_aug=flip_aug).cpu()
+            feats_s = []
+            for s in style_im_tmp:
+                s = extract_feats(s, phi, flip_aug=flip_aug).cpu()
+                feats_s.append(s)
 
             # Extract features from convex combination of content image and current iterate:
             c_tmp = (output_img * alpha) + (content_im_tmp * (1. - alpha))
@@ -119,7 +125,7 @@ def replace_features(src, ref, top_k=1):
     # How many rows of the distance matrix to compute at once, can be
     # reduced if less memory is available, but this slows method down
     # Stride becomes smaller when style image size getting bigger
-    stride = 128 ** 2 // max(1, (ref.size(2) * ref.size(3)) // (128 ** 2))
+    stride = 128 ** 2 // max(1, (src.size(2) * src.size(3)) // (128 ** 2))
     bi = 0
 
     # Loop until all content features are replaced by style feature / all rows of distance matrix are computed
@@ -154,8 +160,7 @@ def replace_features(src, ref, top_k=1):
 def optimize_output_im(output_img, content_img, style_img, target_feats,
                        lr, max_iter, scl, phi, final_pass=False,
                        content_loss=False, flip_aug=True):
-    """ Optimize laplacian pyramid coefficients of stylized image at a given
-        resolution, and return stylized pyramid coefficients.
+    """ Optimize stylized image at a given resolution
         Inputs:
             output_img -- output image
             content_img -- content image
@@ -163,8 +168,7 @@ def optimize_output_im(output_img, content_img, style_img, target_feats,
             target_feats -- precomputed target features of stylized output
             lr -- learning rate for optimization
             max_iter -- maximum number of optimization iterations
-            scl -- integer controls which resolution to optimize (corresponds
-                   to pyramid level of target resolution)
+            scl -- integer controls which resolution to optimize
             phi -- lambda function to compute features using pretrained VGG16
             final_pass -- if true, ignore 'target_feats' and recompute target
                           features before every step of gradient descent (and
@@ -178,9 +182,9 @@ def optimize_output_im(output_img, content_img, style_img, target_feats,
                         more options available when matching style features
                         to content features
         Outputs:
-            output_pyr -- pyramid coefficients of stylized output image at target
-                     resolution
+            output_pyr -- stylized output image at target resolution
     """
+    
     # Initialize optimizer variables and optimizer
     opt_vars = output_img.clone().detach().requires_grad_(True)
     optimizer = torch.optim.Adam([opt_vars], lr=lr)
@@ -196,7 +200,10 @@ def optimize_output_im(output_img, content_img, style_img, target_feats,
     else:
         # For feature-splitting regime extract style features for each conv
         # layer without downsampling (including from rotations if applicable)
-        s_feat = phi(style_img, feature_list_final, False)
+        s_feat = []
+        for s in style_img:
+            s_feat += [phi(s, feature_list_final, False)]
+        s_feat = [list(x) for x in zip(*s_feat)]
 
         if flip_aug:
             aug_list = [torch.flip(style_img, [2]).transpose(2, 3),
@@ -227,7 +234,7 @@ def optimize_output_im(output_img, content_img, style_img, target_feats,
         c_low_flat = flatten_grid(scl_spatial(content_im_tmp, h, w))
         self_sim_target = pairwise_distances_gram(c_low_flat, c_low_flat).clone().detach()
 
-    # Optimize pyramid coefficients to find image that produces stylized activations
+    # Optimize pixels to find image that produces stylized activations
     for i in range(max_iter):
 
         # Zero out gradient and loss before current iteration
@@ -256,17 +263,22 @@ def optimize_output_im(output_img, content_img, style_img, target_feats,
                 # Get features from a particular layer
                 s_tmp = s_feat[h_i]
                 out_temp = out_feats[h_i]
-                chans = s_tmp.size(1)
+                chans = out_temp.size(1)
 
                 # Sparsely sample feature tensors if too big, otherwise just reshape
                 if max(out_temp.size(2), out_temp.size(3)) > 64:
                     stride = max(out_temp.size(2), out_temp.size(3)) // 64
                     offset_a = random.randint(0, stride - 1)
                     offset_b = random.randint(0, stride - 1)
-                    s_samp = s_tmp[:, :, offset_a::stride, offset_b::stride]
-                    out_samp = out_temp[:, :, offset_a::stride, offset_b::stride]
 
-                    s_samp = s_samp.contiguous().view(1, chans, -1)
+                    # combine all of the style features into one tensor
+                    s_samp = []
+                    for s in s_tmp:
+                        s_samp += s[:, :, offset_a::stride, offset_b::stride]
+                    s_samp = [s.contiguous().view(1, chans, -1) for s in s_samp]
+                    s_samp = torch.cat(s_samp, 2)
+
+                    out_samp = out_temp[:, :, offset_a::stride, offset_b::stride]
                     out_samp = out_samp.contiguous().view(1, chans, -1)
 
                 else:

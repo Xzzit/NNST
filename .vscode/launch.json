@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["--content_path", "inputs/content/C1.png", 
-            "--style_path", "inputs/style/S4.jpg", 
+            "--style_path", "inputs/style/S1.jpg", "inputs/style/S2.jpg",
             "--output_path", "./output.jpg"]
         }
     ]

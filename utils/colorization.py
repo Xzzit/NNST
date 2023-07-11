@@ -149,17 +149,16 @@ def color_match(c, s, o, moment_only=False):
     to be an affine transformation of 'c' matching the mean and covariance of the style image 's'.
     Compared to the raw output of optimization this is highly constrained, but in practice
     we find the benefit to robustness to be worth the reduced stylization.
-    c -- B x 3 x H x W pytorch tensor containing content image
-    s -- B x 3 x H x W pytorch tensor containing style image
-    o -- B x 3 x H x W pytorch tensor containing initial output image
+    c -- 1 x 3 x H x W pytorch tensor containing content image
+    s -- [1 x 3 x H x W, ...] pytorch tensor containing style images
+    o -- 1 x 3 x H x W pytorch tensor containing initial output image
     moment_only -- boolean, prevents applying bilateral filter to AB channels of final output to match luminance's edges
     '''
     c = torch.clamp(c, 0., 1.)
-    s = torch.clamp(s, 0., 1.)
+    s = torch.clamp(s[0], 0., 1.)
     o = torch.clamp(o, 0., 1.)
 
     x = linear_2_oklab(c)
-    x_flat = x.view(x.size(0), x.size(1), -1, 1)
     y = linear_2_oklab(s)
     o = linear_2_oklab(o)
 
@@ -180,8 +179,6 @@ def color_match(c, s, o, moment_only=False):
     for i in range(3):
         x_new[:, i:i + 1, :, :] = clamp_range(x_new[:, i:i + 1, :, :], y[:, i:i + 1, :, :])
 
-    x_pyr = dec_pyr(x, 4)
-    y_pyr = dec_pyr(y, 4)
     x_new_pyr = dec_pyr(x_new, 4)
     o_pyr = dec_pyr(o, 4)
     x_new_pyr[:-1] = o_pyr[:-1]
