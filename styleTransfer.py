@@ -12,7 +12,7 @@ import numpy as np
 from pretrained.vgg import Vgg16Pretrained
 from utils import misc as misc
 from utils.misc import load_str_for_pytorch, load_list_for_pytorch
-from utils.stylize_no_pyr import produce_stylization
+from NNST.utils.stylize import produce_stylization
 
 # Fix Random Seed
 random.seed(0)
